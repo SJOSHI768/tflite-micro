@@ -12,8 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
+#if defined(VISIONP6_AO)
+#include "tensorflow/lite/micro/kernels/xtensa/conv.h"
+#else
 #include "tensorflow/lite/micro/kernels/conv.h"
+#endif
 
 #include "tensorflow/lite/c/builtin_op_data.h"
 #include "tensorflow/lite/c/common.h"
@@ -29,11 +32,22 @@ limitations under the License.
 #include "tensorflow/lite/micro/kernels/xtensa/xtensa.h"
 #include "tensorflow/lite/micro/kernels/xtensa/xtensa_conv.h"
 
+#if defined(VISIONP6_AO)
+#include "vision_api.h"
+#include "utils.h"
+#endif
+
 namespace tflite {
 namespace {
 
 void* Init(TfLiteContext* context, const char* buffer, size_t length) {
   TFLITE_DCHECK(context->AllocatePersistentBuffer != nullptr);
+  
+#if defined(VISIONP6_AO)  
+  if (InitXtensaContext())
+      return nullptr;
+#endif
+  
   return context->AllocatePersistentBuffer(context, sizeof(XtensaConvOpData));
 }
 
@@ -49,8 +63,11 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
   TFLITE_DCHECK(node->user_data != nullptr);
   TFLITE_DCHECK(node->builtin_data != nullptr);
+
+#if !defined(VISIONP6_AO)  
   const auto& params =
       *(reinterpret_cast<TfLiteConvParams*>(node->builtin_data));
+#endif
   const auto& op_data = *(reinterpret_cast<XtensaConvOpData*>(node->user_data));
 
   TfLiteEvalTensor* output =
@@ -105,7 +122,23 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                        tflite::micro::GetTensorData<int8_t>(output));
 #elif defined(FUSION_F1) || defined(HIFI5)
       ConvEvalHifi(context, node, params, op_data, input, filter, bias, output);
-#else
+#elif defined(VISIONP6_AO)
+      if (op_data.reference_op_data.enableXtensaKernel) {
+        uint32_t input_size = input->dims->data[0] * input->dims->data[1] *
+                              input->dims->data[2] * input->dims->data[3];
+        uint32_t output_size = output->dims->data[0] * output->dims->data[1] *
+                              output->dims->data[2] * output->dims->data[3];
+        uint32_t num_channels = filter->dims->data[kConvQuantizedDimension];
+
+        xiConv(op_data.reference_op_data.pContext, op_data.reference_op_data.contextSize,
+            (int8_t *)tflite::micro::GetTensorData<int8_t>(input), input_size,
+            tflite::micro::GetTensorData<int8_t>(output), output_size,
+            op_data.reference_op_data.reordCoeffnBias, op_data.reference_op_data.reordCoeffnBiasSize,
+            op_data.reference_op_data.per_channel_output_multiplier,
+            op_data.reference_op_data.per_channel_output_shift_int8, num_channels);
+        break;
+      }
+#else      
       reference_integer_ops::ConvPerChannel(
           ConvParamsQuantized(params, op_data.reference_op_data),
           op_data.reference_op_data.per_channel_output_multiplier,
