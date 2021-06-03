@@ -50,8 +50,10 @@ limitations under the License.
 #include "tensorflow/lite/micro/kernels/conv.h"
 #endif
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
+#if defined(VISIONP6_AO)
 #include "vision_api.h"
 #include "utils.h"
+#endif
 
 
 namespace tflite {
