@@ -26,7 +26,9 @@ declare -r MICRO_LOG_PATH=${TEST_TMPDIR}/$1
 declare -r MICRO_LOG_FILENAME=${MICRO_LOG_PATH}/logs.txt
 mkdir -p ${MICRO_LOG_PATH}
 
-xt-run $1 2>&1 | tee ${MICRO_LOG_FILENAME}
+XTENSA_XTRUN_MODE ?= --mem_model
+
+xt-run ${XTENSA_XTRUN_MODE} $1 2>&1 | tee ${MICRO_LOG_FILENAME}
 
 if [[ ${2} != "non_test_binary" ]]
 then
