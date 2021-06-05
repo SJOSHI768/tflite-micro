@@ -74,6 +74,7 @@ ifeq ($(TARGET_ARCH), $(findstring $(TARGET_ARCH), "visionp6_ao"))
   CCFLAGS += -O3
 endif
 
+XTENSA_XTRUN_MODE ?= 
 TEST_SCRIPT := tensorflow/lite/micro/testing/test_xtensa_binary.sh
 
 # TODO(b/158651472): Fix the memory_arena_threshold_test
