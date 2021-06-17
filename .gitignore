@@ -3,3 +3,4 @@
 .vscode/
 *audio_frontend*
 *google*
+tensorflow/lite/micro/kernels/xtensa/*
